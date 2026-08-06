@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Data (tracked by DVC instead of git)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# MLflow
+mlruns/
+mlflow.db
+
+# Env / secrets
+.env
+
+# OS
+.DS_Store

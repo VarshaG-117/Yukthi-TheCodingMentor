@@ -1,0 +1,25 @@
+# --- Phase 2: Data collection ---
+requests
+
+# --- Phase 3: Data versioning ---
+dvc
+
+# --- Phase 4-5: Data + ML ---
+pandas
+numpy
+scikit-learn
+lightgbm
+
+# --- Phase 6: Experiment tracking ---
+mlflow
+
+# --- Phase 7: Serving API ---
+fastapi
+uvicorn
+pydantic
+
+# --- Testing ---
+pytest
+
+# --- Phase 10: Monitoring ---
+evidently
