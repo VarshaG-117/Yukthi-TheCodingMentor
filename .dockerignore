@@ -1,0 +1,12 @@
+venv/
+.venv/
+.git/
+.dvc/cache/
+mlruns/
+__pycache__/
+*.pyc
+notebooks/
+tests/
+.pytest_cache/
+data/raw/*_user_*.json
+data/raw/community_codeforces.json
