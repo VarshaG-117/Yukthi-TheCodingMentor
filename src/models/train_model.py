@@ -1,4 +1,4 @@
-"""
+﻿"""
 Trains Problem B: a classifier predicting the probability a user
 solves a given problem, based on their skill rating and the problem's
 difficulty.
@@ -20,6 +20,7 @@ Usage:
 import pandas as pd
 import numpy as np
 import os
+import json
 import joblib
 import mlflow
 import mlflow.lightgbm
@@ -32,8 +33,6 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "models")
 
 MLFLOW_EXPERIMENT_NAME = "coding-mentor-success-classifier"
 
-# Model hyperparameters - defined up top so they're easy to tweak and
-# so we log the EXACT values used for each run.
 MODEL_PARAMS = {
     "n_estimators": 200,
     "max_depth": 5,
@@ -49,11 +48,6 @@ def load_training_data():
 
 
 def engineer_features(df):
-    """
-    Builds the feature matrix X and label vector y.
-    rating_gap is the key feature - how much harder/easier the
-    problem is relative to the user's current topic skill.
-    """
     df = df.copy()
     df["rating_gap"] = df["difficulty"] - df["user_rating_before"]
 
@@ -75,8 +69,6 @@ def train_and_evaluate():
         X, y, feature_cols = engineer_features(df)
         mlflow.log_param("feature_columns", ",".join(feature_cols))
 
-        # Stratified split keeps the solved/failed ratio consistent between
-        # train and test sets.
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
@@ -84,14 +76,12 @@ def train_and_evaluate():
         mlflow.log_param("train_rows", len(X_train))
         mlflow.log_param("test_rows", len(X_test))
 
-        # Log every hyperparameter so this exact run is reproducible
         for param_name, param_value in MODEL_PARAMS.items():
             mlflow.log_param(param_name, param_value)
 
         model = lgb.LGBMClassifier(**MODEL_PARAMS, verbose=-1)
         model.fit(X_train, y_train)
 
-        # Evaluate
         y_pred_proba = model.predict_proba(X_test)[:, 1]
         y_pred = model.predict(X_test)
 
@@ -114,7 +104,6 @@ def train_and_evaluate():
             print(f"  {feat}: {imp}")
             mlflow.log_metric(f"importance_{feat}", float(imp))
 
-        # Sanity check: does the model roughly match the theoretical Elo curve?
         print("\n=== Sanity check: predicted solve probability vs rating_gap ===")
         print("(should DECREASE as rating_gap increases - harder problem relative to skill)")
         for gap in [-400, -200, 0, 200, 400]:
@@ -132,9 +121,12 @@ def train_and_evaluate():
         joblib.dump(model, model_path)
         print(f"\nModel saved -> {model_path}")
 
-        # Log the model itself as an MLflow artifact - this is what lets
-        # you (or the Model Registry, later) pull back this EXACT trained
-        # model from any past run.
+        metrics_path = os.path.join(MODELS_DIR, "latest_run_metrics.json")
+        with open(metrics_path, "w") as f:
+            json.dump({"auc": auc, "accuracy": acc, "log_loss": ll,
+                       "training_rows": len(df)}, f, indent=2)
+        print(f"Metrics saved -> {metrics_path}")
+
         mlflow.lightgbm.log_model(model, "model")
 
         run = mlflow.active_run()

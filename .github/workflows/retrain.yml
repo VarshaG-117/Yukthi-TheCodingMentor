@@ -1,0 +1,56 @@
+﻿name: Continuous Training
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  retrain:
+    name: Retrain and evaluate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pandas numpy scikit-learn lightgbm mlflow joblib
+
+      - name: Fetch fresh community data
+        run: python src/data_collection/fetch_community_data.py --per-bucket 10
+
+      - name: Build features from fresh data
+        run: |
+          cd src/features
+          python build_community_features.py
+
+      - name: Check for data drift
+        run: |
+          cd src/monitoring
+          python check_drift.py
+
+      - name: Train candidate model
+        run: |
+          cd src/models
+          python train_model.py
+
+      - name: Run promotion gate
+        run: |
+          cd src/monitoring
+          python compare_metrics.py
+
+      - name: Upload trained model as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-model
+          path: |
+            models/success_classifier.pkl
+            models/latest_run_metrics.json
